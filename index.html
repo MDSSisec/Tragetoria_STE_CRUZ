@@ -390,6 +390,43 @@
 (function () {
   "use strict";
 
+  /* ================= THEME ================= */
+  var THEME_KEY = "scr-theme-pref";
+  function getStoredTheme() {
+    try { return localStorage.getItem(THEME_KEY); } catch (e) { return null; }
+  }
+  function setStoredTheme(v) {
+    try { if (v) localStorage.setItem(THEME_KEY, v); else localStorage.removeItem(THEME_KEY); } catch (e) {}
+  }
+  function systemPrefersDark() {
+    return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  }
+  function currentEffectiveTheme() {
+    var stored = getStoredTheme();
+    if (stored === "light" || stored === "dark") return stored;
+    return systemPrefersDark() ? "dark" : "light";
+  }
+  function applyTheme() {
+    var stored = getStoredTheme();
+    if (stored === "light" || stored === "dark") {
+      document.documentElement.setAttribute("data-theme", stored);
+    } else {
+      document.documentElement.removeAttribute("data-theme");
+    }
+  }
+  function toggleTheme() {
+    setStoredTheme(currentEffectiveTheme() === "dark" ? "light" : "dark");
+    applyTheme();
+    render();
+  }
+  applyTheme();
+  if (window.matchMedia) {
+    var themeMq = window.matchMedia("(prefers-color-scheme: dark)");
+    var onSystemThemeChange = function () { if (!getStoredTheme()) render(); };
+    if (themeMq.addEventListener) themeMq.addEventListener("change", onSystemThemeChange);
+    else if (themeMq.addListener) themeMq.addListener(onSystemThemeChange);
+  }
+
   /* ================= DATA ================= */
   var RAW = JSON.parse(document.getElementById("app-data").textContent);
   var pessoas = RAW.pessoas;
@@ -476,6 +513,12 @@
     info: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="7.3"/><path d="M10 9v5" stroke-linecap="round"/><circle cx="10" cy="6.6" r="0.9" fill="currentColor" stroke="none"/></svg>',
     arrow: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 10h11M11 6l4 4-4 4" stroke-linecap="round" stroke-linejoin="round"/></svg>'
   };
+
+  function themeToggleIcon() {
+    return currentEffectiveTheme() === "dark"
+      ? '<svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 10.8a6.4 6.4 0 0 0 8.8 5.9A7.3 7.3 0 1 1 6.9 3.1a6.4 6.4 0 0 0-2.9 7.7Z" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+      : '<svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="3.4"/><path d="M10 2.6v2.1M10 15.3v2.1M2.6 10h2.1M15.3 10h2.1M5 5l1.5 1.5M13.5 13.5L15 15M5 15l1.5-1.5M13.5 6.5L15 5" stroke-linecap="round"/></svg>';
+  }
 
   // "pessoa" dims live on every person regardless of whether they ever had a CAGED occurrence
   // (uf/município/curso are recorded at enrollment). "ocorrencia" dims only exist on real
@@ -642,7 +685,10 @@
       '<div class="brand-mark"><svg viewBox="0 0 20 20" fill="none" stroke="#fff" stroke-width="1.8"><path d="M3 15l4.2-5 3.4 3L16.5 6" stroke-linecap="round" stroke-linejoin="round"/><path d="M12.5 6H16.5V10" stroke-linecap="round" stroke-linejoin="round"/></svg></div>' +
       '<div><div class="brand-name">Trajetórias Santa Cruz</div><div class="brand-sub">Egressos dos cursos profissionalizantes &middot; cruzamento com o CAGED</div></div>' +
       '</div>' +
+      '<div style="display:flex;align-items:center;gap:12px;">' +
       '<nav class="breadcrumbs">' + crumbs + '</nav>' +
+      '<button class="btn btn-ghost" data-action="toggle-theme" title="Alternar para tema ' + (currentEffectiveTheme() === "dark" ? "claro" : "escuro") + '" aria-label="Alternar tema" style="padding:7px 9px;">' + themeToggleIcon() + '</button>' +
+      '</div>' +
       '</div></div>';
   }
 
@@ -1159,6 +1205,9 @@
         state.modal = null; render(); break;
       case "close-modal-overlay":
         if (e.target === el) { state.modal = null; render(); }
+        break;
+      case "toggle-theme":
+        toggleTheme();
         break;
     }
   });
