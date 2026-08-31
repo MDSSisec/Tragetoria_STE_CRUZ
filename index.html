@@ -109,9 +109,10 @@
     border-bottom: 1px solid var(--line);
   }
   .topbar-inner {
-    max-width: 1180px; margin: 0 auto; padding: 14px 24px;
+    max-width: 1560px; margin: 0 auto; padding: 14px 32px;
     display: flex; align-items: center; justify-content: space-between; gap: 16px;
   }
+  @media (max-width: 760px) { .topbar-inner { padding: 14px 18px; } }
   .brand { display: flex; align-items: baseline; gap: 10px; }
   .brand-mark {
     width: 30px; height: 30px; border-radius: 8px; background: var(--accent);
@@ -129,7 +130,43 @@
   .breadcrumbs .crumb-current { color: var(--ink); font-weight: 600; }
 
   main { flex: 1; }
-  .container { max-width: 1180px; margin: 0 auto; padding: 28px 24px 64px; }
+  .container { max-width: 1560px; margin: 0 auto; padding: 28px 32px 64px; }
+  @media (max-width: 760px) { .container { padding: 22px 18px 56px; } }
+
+  /* ---------- overview two-column layout ---------- */
+  .overview-grid {
+    display: grid; grid-template-columns: 288px minmax(0, 1fr); gap: 22px; align-items: start;
+  }
+  .main-col { min-width: 0; display: flex; flex-direction: column; gap: 22px; }
+  .main-col .kpi-row { margin-bottom: 0; }
+  .info-panel { position: sticky; top: 80px; padding: 0; overflow: hidden; }
+  .info-head { padding: 15px 18px; border-bottom: 1px solid var(--line); }
+  .info-head h2 { font-size: 15px; }
+  .info-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 14px; }
+  .info-lede { font-size: 12.5px; color: var(--ink-2); line-height: 1.55; }
+  .info-sub { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-muted); font-weight: 700; }
+  .info-stats { margin: 0; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+  .info-stat { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 8px 12px; font-size: 12.5px; }
+  .info-stat + .info-stat { border-top: 1px solid var(--line); }
+  .info-stat dt { color: var(--ink); }
+  .info-stat dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink); text-align: right; white-space: nowrap; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .info-stat dt { color: var(--ink-2); }
+  }
+  :root[data-theme="dark"] .info-stat dt { color: var(--ink-2); }
+  .info-note {
+    font-size: 12px; color: var(--ink-muted); background: var(--surface-2); border-radius: var(--radius-sm);
+    padding: 10px 12px; display: flex; gap: 8px; align-items: flex-start; line-height: 1.5;
+  }
+  .info-note svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 1px; }
+  .info-defs { display: flex; flex-direction: column; gap: 9px; }
+  .info-defs p { margin: 0; font-size: 12px; color: var(--ink-2); line-height: 1.55; }
+  .info-defs strong { color: var(--ink); font-weight: 700; }
+  @media (max-width: 1024px) {
+    .overview-grid { grid-template-columns: 1fr; }
+    .info-panel { position: static; order: 2; }
+    .main-col { order: 1; }
+  }
 
   /* ---------- kpi row ---------- */
   .kpi-row {
@@ -728,16 +765,72 @@
 
     return '' +
       '<div class="container">' +
+      '<div class="overview-grid">' +
+      '<aside class="panel info-panel">' + renderInfoPanel(scope, visiblePessoas.length) + "</aside>" +
+      '<div class="main-col">' +
       '<div class="kpi-row">' + kpiHtml + "</div>" +
-      (hasActiveFilters() || state.search
-        ? '<div class="scope-note">' + ICONS.info + ' Indicadores calculados sobre <strong>' + (hasActiveFilters() ? "o recorte filtrado" : "todas as ocorrências") + '</strong>' + (state.search ? "; a busca por nome/CPF afeta apenas a lista abaixo." : ".") + "</div>"
-        : '<div class="scope-note">' + ICONS.info + " Indicadores sobre a base completa: 386 pessoas cruzadas com o CAGED, das quais 180 tiveram algum vínculo encontrado. Use os filtros para recortar por período, local, setor, empresa, curso, tipo de movimentação ou situação no CAGED.</div>") +
       '<div class="panel">' +
       renderToolbar() +
       renderTable(pagePessoas) +
       renderTableFooter(visiblePessoas.length, totalPages, start, pagePessoas.length) +
       "</div>" +
+      "</div>" +
+      "</div>" +
       "</div>";
+  }
+
+  var GLOBAL_COM_OCORRENCIA = pessoas.filter(function (p) { return p.temOcorrencia; }).length;
+  var GLOBAL_SEM_OCORRENCIA = pessoas.length - GLOBAL_COM_OCORRENCIA;
+
+  function infoStat(label, value) {
+    return '<div class="info-stat"><dt>' + esc(label) + "</dt><dd>" + esc(value) + "</dd></div>";
+  }
+
+  function renderInfoPanel(scope, visibleCount) {
+    var periodo = competenciaLabelFromIdx(GLOBAL_MIN_IDX) + " – " + competenciaLabelFromIdx(GLOBAL_MAX_IDX);
+    var totalScope = scope.pessoasInScope.length;
+    var comScope = scope.pessoasInScope.filter(function (p) { return p.temOcorrencia; }).length;
+    var semScope = totalScope - comScope;
+    var recorteAtivo = hasActiveFilters() || state.search;
+
+    var scopeText = recorteAtivo
+      ? "Os indicadores refletem " + (hasActiveFilters() ? "o recorte filtrado" : "toda a base") + "." + (state.search ? " A busca por nome/CPF afeta apenas a lista de pessoas." : "")
+      : "Os indicadores cobrem a base completa. Use os filtros para recortar por período, local, setor, empresa, curso, tipo de movimentação ou situação no CAGED.";
+
+    var html = '<div class="info-head"><h2>Sobre o painel</h2></div><div class="info-body">';
+
+    html += '<p class="info-lede">Este painel cruza a lista de egressos dos cursos profissionalizantes da Associação União Santa Cruz com os microdados do CAGED (Cadastro Geral de Empregados e Desempregados) para acompanhar quem passou a ter emprego formal depois da formação. Filtre pelos campos acima e clique em uma pessoa para ver a linha do tempo dos seus vínculos.</p>';
+
+    html += '<div class="info-sub">O que significam os termos</div>';
+    html += '<div class="info-defs">' +
+      "<p><strong>Com vínculo encontrado</strong> — o CPF da pessoa aparece em pelo menos uma movimentação formal (admissão ou desligamento) registrada no CAGED dentro do período coberto.</p>" +
+      "<p><strong>Sem vínculo encontrado</strong> — nenhum registro formal foi localizado para esse CPF na base do CAGED disponibilizada. Isso <strong>não</strong> quer dizer, necessariamente, que a pessoa está desempregada: ela pode estar em trabalho informal, ser autônoma ou MEI, ter sido contratada antes do período coberto, trabalhar fora do país, ou o registro simplesmente não constar nos dados recebidos.</p>" +
+      "<p><strong>Vínculo</strong> — um emprego formal reconstruído pelo pareamento cronológico de uma admissão com o desligamento seguinte no mesmo empregador. Um vínculo &quot;em aberto&quot; é aquele sem desligamento registrado até o fim do período.</p>" +
+      "</div>";
+
+    html += '<div class="info-sub">Base de dados</div>';
+    html += '<dl class="info-stats">' +
+      infoStat("Período coberto", periodo) +
+      infoStat("Registros CAGED", fmtInt(ocorrencias.length)) +
+      infoStat("Pessoas cadastradas", fmtInt(pessoas.length)) +
+      infoStat("Com vínculo encontrado", fmtInt(GLOBAL_COM_OCORRENCIA)) +
+      infoStat("Sem vínculo encontrado", fmtInt(GLOBAL_SEM_OCORRENCIA)) +
+      "</dl>";
+
+    html += '<div class="info-sub">Neste recorte</div>';
+    html += '<dl class="info-stats">' +
+      infoStat("Pessoas", fmtInt(totalScope)) +
+      infoStat("Com vínculo encontrado", fmtInt(comScope)) +
+      infoStat("Sem vínculo encontrado", fmtInt(semScope)) +
+      infoStat("Resultados na lista", fmtInt(visibleCount)) +
+      "</dl>";
+
+    html += '<div class="info-note">' + ICONS.info + "<span>" + esc(scopeText) + "</span></div>";
+    if (activeFilterCount()) {
+      html += '<button class="btn btn-ghost" data-action="clear-all" style="width:100%;justify-content:center;">Limpar ' + activeFilterCount() + " filtro" + (activeFilterCount() > 1 ? "s" : "") + "</button>";
+    }
+    html += "</div>";
+    return html;
   }
 
   function renderToolbar() {
